@@ -1,0 +1,161 @@
+---
+title: "WAGGY"
+output: html_document
+date: "2024-08-29"
+---
+
+
+```{r}
+library(dplyr)
+library(readxl)
+X2022_TrackMan_Data <- read_excel("2022 TrackMan Data.xlsx")
+
+#A note that this rmd file contains both my answer submissions. The first question is the Davis Palermo question and the second is the FSU reliever match up question. The divide between questions is indicated with another line of text further down.
+
+#Beginning of first question
+
+FB=X2022_TrackMan_Data%>%
+  filter(AutoPitchType=="FB")%>%
+  mutate(Whiff=ifelse(PitchCall=="StrikeSwinging",1,0))
+
+#My first task was to create a new variable for whiffs, or swinging strikes. The reasoning for this is because the whiff is the best possible outcome for any pitcher for any given pitch, as it will lead either to another strike in the count or an out without putting the ball in play. If the ball is put in play the pitcher has almost no control over the outcome of the play, no matter the batted ball data, as BABIP can often be quite high even with poor batted ball data. Because the pitcher has far more control over an at bat if the ball isn't put in play, it is best that each pitch is thrown with the intent to induce a whiff. Whiffs are additionally more valued than called strikes for the same reason, as the strike zone can often depend upon the umpire and the pitcher doesn't have much control over whether or not the batter will swing. This mutate function creates a new binary variable for whiffs where a 1 is a whiff and a 0 is any other outcome.
+
+FBSELECT=FB%>%
+  select(RelSpeed, VertRelAngle, HorzRelAngle, SpinRate, VertBreak, HorzBreak, Whiff, Pitcher, VertApprAngle,)%>%
+  mutate(
+    RelSpeed = as.numeric(RelSpeed),
+    VertRelAngle = as.numeric(VertRelAngle),
+    HorzRelAngle = as.numeric(HorzRelAngle),
+    SpinRate = as.numeric(SpinRate),
+    VertBreak = as.numeric(VertBreak),
+    HorzBreak = as.numeric(HorzBreak),
+    Whiff = as.numeric(Whiff),
+    VertApprAngle=as.numeric(VertApprAngle)
+  ) %>%
+  filter(
+    !is.na(as.numeric(RelSpeed)) & 
+    !is.na(as.numeric(VertRelAngle)) & 
+    !is.na(as.numeric(HorzRelAngle)) & 
+    !is.na(as.numeric(SpinRate)) & 
+    !is.na(as.numeric(VertBreak)) & 
+    !is.na(as.numeric(HorzBreak)) & 
+    !is.na(as.numeric(Whiff)) &
+    !is.na(as.numeric(VertApprAngle))
+  )
+#The next cleaning function serves to remove all of the N/A points from the variables I want to regress on. The ones I chose were release speed, vertical release angle, horizontal release angle, spin rate, vertical break, and horizontal break. These variables are the most important, as they can be changed and influence by the pitcher through adjusting his technique.
+```
+
+
+
+```{r}
+  
+```
+
+
+
+
+```{r}
+PitcherSummary=FBSELECT%>%
+  group_by(Pitcher)%>%
+  summarise(AvgRelSpeed=mean(RelSpeed), AvgVertRelAngle=mean(VertRelAngle), AvgHorzRelAngle=mean(HorzRelAngle), AvgSpinRate=mean(SpinRate), AvgVertBreak=mean(VertBreak), AvgHorzBreak=mean(HorzBreak), AvgWhiff=mean(Whiff))
+  
+Whiffmod=lm(AvgWhiff~AvgSpinRate+AvgRelSpeed+AvgHorzRelAngle+AvgVertRelAngle+AvgVertBreak+AvgHorzBreak+I(AvgSpinRate*AvgRelSpeed)+I(AvgHorzRelAngle*AvgVertRelAngle)+I(AvgHorzRelAngle*AvgHorzBreak)+I(AvgVertRelAngle*AvgVertBreak), data = PitcherSummary)
+summary(Whiffmod)
+plot(Whiffmod)
+anova(Whiffmod)
+
+#This is the creation of the models, regressing the chosen variables with whiffs, as again whiffs are the best possible outcome for a single pitch.
+```
+
+```{r}
+FBSELECTMOD=lm(Whiff~RelSpeed+VertRelAngle+HorzRelAngle+SpinRate+VertBreak+HorzBreak+I(RelSpeed*SpinRate)+I(VertRelAngle*VertBreak)+I(HorzBreak*HorzRelAngle)+VertApprAngle, data = FBSELECT)
+summary(FBSELECTMOD)
+plot(FBSELECTMOD)
+anova(FBSELECTMOD)
+
+#After regressing the chosen variables and making the models we can see which are most significant. As we can see based on the models, several of the variables we chose are significant in predicting whiff rate. In the variance table, it shows that vertical break, vertical release angle, and release speed are most significant in predicting whiff rates. Spin rate, as well as horizontal break and release angle were also found to be significant. It is clear based off these models and tables that these variables are most important in producing whiffs, and thus producing successful pitchers. 
+```
+```{r}
+#Beginning of the second question
+
+X2022_TrackMan_Data=X2022_TrackMan_Data%>%
+  mutate(whiff=ifelse(PitchCall=="StrikeSwinging",1,0))%>%
+  mutate(whiff=as.numeric(whiff))
+Right=X2022_TrackMan_Data%>%
+  filter(PitcherThrows=="Right")
+Left=X2022_TrackMan_Data%>%
+  filter(PitcherThrows=="Left")
+MathisL=Left%>%
+  filter(Batter=="Mathis, Brock")
+TibbsL=Left%>%
+  filter(Batter=="Tibbs III, James")
+FerrerL=Left%>%
+  filter(Batter=="Ferrer, Jaime")
+MathisR=Right%>%
+  filter(Batter=="Mathis, Brock")
+TibbsR=Right%>%
+  filter(Batter=="Tibbs III, James")
+FerrerR=Right%>%
+  filter(Batter=="Ferrer, Jaime")
+
+mean(TibbsL$whiff)
+mean(TibbsR$whiff)
+mean(FerrerL$whiff)
+mean(FerrerR$whiff)
+mean(MathisL$whiff)
+mean(MathisR$whiff)
+
+
+#The first task was to determine how well each of the batters performs against righties and lefties, as that is the first distinguishing factor between the relievers and will be helpful in determining the optimal match ups. This function again uses the whiff, or swinging strike as its main variable to compare with. This function filters each of the batters from FSU's average whiff rates against lefties and righties respectively.
+```
+
+
+```{r}
+#These are the average whiffs between each of the batters against lefties and righties. Since the whiff variable created is a binary variable, an average whiff number closer to 1 will indicate a higher whiff rate and a number closer to 0 will indicate less whiffs. Based on the data, it is clear we should likely go with a righty, as two of the three batters have higher whiff rates against righties, with only Ferrer performing better against lefties. Not to mention, two of the three batters are righties, and it is very typical for match ups between pitchers and batters of the same handedness to favor the pitcher. Additionally, the only lefty batter, Tibbs, performs better against lefty pitchers.
+```
+
+
+```{r}
+LeftB=X2022_TrackMan_Data%>%
+  filter(BatterSide=="Left")
+RightB=X2022_TrackMan_Data%>%
+  filter(BatterSide=="Right")
+GageR=RightB%>%
+  filter(Pitcher=="Gillian, Gage")
+OBrienR=RightB%>%
+  filter(Pitcher=="O'Brien, Caden")
+PeavyhouseR=RightB%>%
+  filter(Pitcher=="Peavyhouse, Shaddon")
+GageL=LeftB%>%
+  filter(Pitcher=="Gillian, Gage")
+OBrienL=LeftB%>%
+  filter(Pitcher=="O'Brien, Caden")
+PeavyhouseL=LeftB%>%
+  filter(Pitcher=="Peavyhouse, Shaddon")
+
+mean(OBrienL$whiff)
+mean(OBrienR$whiff)
+mean(PeavyhouseL$whiff)
+mean(PeavyhouseR$whiff)
+mean(GageL$whiff)
+mean(GageR$whiff)
+
+
+
+
+#This next function seeks to do the reverse of the previous function, as it seeks to isolate the three UNC pitchers' average whiffs against lefty and righty batters. The function creates a new dataset containing the results of each pitchers' respective pitches against lefties and righties and then finds the average whiffs of that dataset.
+
+GageSum=PitcherSummary%>%
+  filter(Pitcher=="Gillian, Gage")
+OBrienSum=PitcherSummary%>%
+  filter(Pitcher=="O'Brien, Caden")
+PeavyhouseSum=PitcherSummary%>%
+  filter(Pitcher=="Peavyhouse, Jake")
+predict.lm(Whiffmod,OBrienSum)
+predict.lm(Whiffmod,PeavyhouseSum)
+predict.lm(Whiffmod,GageSum)
+
+
+#The results show that the pitcher Forbes should bring in should be Gage Gillian. While he does have a higher average whiffs against lefties, he still has the highest average whiffs against righties and overall among the three pitchers. Considering that FSU has no outs and two men on base, it is imperative that the ball is not put in play. While a ground ball could induce a double play, the pitcher again does not have much control over the outcome, as even a ground ball hit not very hard could result in an error or even a hit depending on where the ball is hit. 
+```
+
